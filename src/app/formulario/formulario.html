@@ -1,0 +1,16 @@
+<form>
+    Nome:<input type="text" placeholder="Digite seu nome" id="txtNome" required><br>
+    Email:<input type="email" placeholder="Digite seu email" id="txtEmail" required><br>
+    Telefone:<input type="number" id="txtTelefone" placeholder="Digite seu telefone" pattern="\([0-9]{2}\) [0-9]{5}-[0-9]{4}" required><br>
+    Assunto:<select id="txtAssunto" placeholder="Selecione">
+        <option>Dúvidas</option>
+        <option>Sugestões</option>
+        <option>Críticas</option>
+        <option>Orçamentos</option>
+    </select><br>
+    Deseja receber uma cópia deste email? <input type="radio" id="comCopia" name="copia">Sim
+                                          <input type="radio" id="semCopia" name="copia">Não <br>
+    Mensagem: <textarea id="txtMensagem" placeholder="Digite sua mensagem" rows="10" cols="30"></textarea><br>
+    <button>Enviar</button>
+
+</form>
