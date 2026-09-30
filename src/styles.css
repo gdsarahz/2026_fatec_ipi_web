@@ -1,1 +1,23 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --pg-grafite: #1d2127;
+  --pg-vermelho: #f39c12;
+  --pg-vermelho-escuro: #a71d1d;
+  --pg-aco: #e8eaed;
+  --pg-fundo: #f6f6f4;
+  --pg-texto: #23272e;
+  --pg-suave: #6b7280;
+}
+body { font-family: 'Barlow', sans-serif; background: var(--pg-fundo); color: var(--pg-texto); min-height: 100vh; }
+h1, h2, h3, .titulo { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; letter-spacing: .01em; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 3px solid var(--pg-vermelho); outline-offset: 2px; }
+
+.btn-pg { background: var(--pg-vermelho); color: #fff; border: 0; font-weight: 600; border-radius: 4px; padding: .5rem 1.1rem; }
+.btn-pg:hover { background: var(--pg-vermelho-escuro); color: #fff; }
+.btn-pg:disabled { opacity: .5; }
+.btn-contorno { background: transparent; color: var(--pg-grafite); border: 2px solid var(--pg-grafite); font-weight: 600; border-radius: 4px; padding: .45rem 1.1rem; }
+.btn-contorno:hover { background: var(--pg-grafite); color: #fff; }
+.form-control:focus { border-color: var(--pg-vermelho); box-shadow: 0 0 0 .2rem rgba(214,40,40,.2); }
+.pagina { padding-top: 2rem; padding-bottom: 3rem; }
+.pagina h1 { font-size: 2.2rem; border-left: 6px solid var(--pg-vermelho); padding-left: .75rem; margin-bottom: 1.5rem; }
+.vazio { background: #fff; border: 2px dashed #c9ccd1; padding: 2.5rem 1rem; text-align: center; color: var(--pg-suave); }
