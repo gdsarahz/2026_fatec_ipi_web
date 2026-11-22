@@ -1,36 +1,72 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { ClienteService } from './cliente.service';
+import { Cliente } from './models';
 
-export interface Usuario { nome: string; email: string; senha: string; cpf: string; telefone: string; }
-const USUARIOS = 'pgcar_usuarios';
-const SESSAO = 'pgcar_sessao';
+const CHAVE = 'pgcar_cliente';
 
-// Simulação em localStorage. No P2 será substituída por uma API.
+// Login e cadastro são feitos no backend. O navegador só guarda o cliente logado
+// (sem a senha) para manter a sessão ao recarregar a página.
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  usuario = signal<Usuario | null>(this.ler<Usuario | null>(SESSAO, null));
+  private clientes = inject(ClienteService);
+  usuario = signal<Cliente | null>(this.lerSessao());
 
-  cadastrar(u: Usuario): boolean {
-    const lista = this.ler<Usuario[]>(USUARIOS, []);
-    if (lista.some(x => x.email.toLowerCase() === u.email.toLowerCase())) return false;
-    localStorage.setItem(USUARIOS, JSON.stringify([...lista, u]));
-    this.iniciarSessao(u);
+  constructor() {
+    this.limparDadosAntigos();
+    this.conferirSessao();
+  }
+
+  /** true se o login foi aceito pelo backend. */
+  entrar(email: string, senha: string): Observable<boolean> {
+    return this.clientes.login(email, senha).pipe(map(c => this.iniciar(c)));
+  }
+
+  /** true se o cadastro foi criado (false = dados inválidos ou e-mail já cadastrado). */
+  cadastrar(cliente: Cliente): Observable<boolean> {
+    return this.clientes.gravar(cliente).pipe(map(c => this.iniciar(c)));
+  }
+
+  /** true se os dados foram atualizados. */
+  atualizar(cliente: Cliente): Observable<boolean> {
+    return this.clientes.alterar(cliente).pipe(map(c => this.iniciar(c)));
+  }
+
+  sair(): void {
+    try { localStorage.removeItem(CHAVE); } catch { /* ignora */ }
+    this.usuario.set(null);
+  }
+
+  private iniciar(c: Cliente | null): boolean {
+    if (!c || !c.codigo) return false;
+    const { senha, ...semSenha } = c;
+    this.usuario.set(semSenha);
+    try { localStorage.setItem(CHAVE, JSON.stringify(semSenha)); } catch { /* ignora */ }
     return true;
   }
 
-  entrar(email: string, senha: string): boolean {
-    const lista = this.ler<Usuario[]>(USUARIOS, []);
-    const u = lista.find(x => x.email.toLowerCase() === email.toLowerCase() && x.senha === senha);
-    if (u) this.iniciarSessao(u);
-    return !!u;
+  // Se o cliente foi removido do banco, encerra a sessão guardada no navegador.
+  private conferirSessao(): void {
+    const atual = this.usuario();
+    if (!atual) return;
+    this.clientes.carregar(atual.codigo).subscribe({
+      next: c => { if (!this.iniciar(c)) this.sair(); },
+      error: () => { /* backend fora do ar: mantém a sessão */ }
+    });
   }
 
-  sair(): void { localStorage.removeItem(SESSAO); this.usuario.set(null); }
-
-  private iniciarSessao(u: Usuario): void {
-    localStorage.setItem(SESSAO, JSON.stringify(u));
-    this.usuario.set(u);
+  private lerSessao(): Cliente | null {
+    try {
+      const c = JSON.parse(localStorage.getItem(CHAVE) ?? 'null');
+      return c && typeof c.codigo === 'number' && c.codigo > 0 ? c : null;
+    } catch { return null; }
   }
-  private ler<T>(chave: string, padrao: T): T {
-    try { return JSON.parse(localStorage.getItem(chave) ?? 'null') ?? padrao; } catch { return padrao; }
+
+  // Remove o que o P1 guardava no navegador (usuários e cesta locais).
+  private limparDadosAntigos(): void {
+    try {
+      ['pgcar_usuarios', 'pgcar_sessao', 'pgcar_cesta'].forEach(k => localStorage.removeItem(k));
+    } catch { /* ignora */ }
   }
 }

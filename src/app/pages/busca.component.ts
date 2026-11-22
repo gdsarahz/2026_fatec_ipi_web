@@ -1,9 +1,19 @@
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { map, switchMap } from 'rxjs/operators';
-import { ProdutoService, Produto } from '../core/produto.service';
+import { Observable, of } from 'rxjs';
+import { catchError, map, startWith, switchMap } from 'rxjs/operators';
+import { ProdutoService } from '../core/produto.service';
+import { Produto } from '../core/models';
+import { mensagemErro } from '../core/http-erro';
 import { CardProdutoComponent } from '../shared/card-produto.component';
+
+interface EstadoBusca {
+  status: 'carregando' | 'ok' | 'erro';
+  lista: Produto[];
+  rotulo: string;
+  erro: string;
+}
 
 @Component({
   selector: 'app-busca',
@@ -11,11 +21,17 @@ import { CardProdutoComponent } from '../shared/card-produto.component';
   imports: [CardProdutoComponent],
   template: `
     <div class="container pagina">
-      <h1>Pesquisa por: {{ dados().rotulo }}</h1>
-      @if (dados().lista.length) {
+      @let e = estado();
+      <h1>Pesquisa por: {{ e.rotulo }}</h1>
+      @if (e.status === 'carregando') {
+        <div class="vazio">Buscando produtos...</div>
+      } @else if (e.status === 'erro') {
+        <div class="alert alert-warning">{{ e.erro }}</div>
+      } @else if (e.lista.length) {
+        <p class="text-secondary">{{ e.lista.length }} produto(s) encontrado(s)</p>
         <div class="row g-3 g-lg-4">
-          @for (p of dados().lista; track p.id) {
-            <div class="col-12 col-sm-6 col-lg-4 col-xl-3"><app-card-produto [produto]="p" /></div>
+          @for (p of e.lista; track p.codigo) {
+            <div class="col-6 col-md-4 col-xl-3"><app-card-produto [produto]="p" /></div>
           }
         </div>
       } @else {
@@ -26,11 +42,22 @@ import { CardProdutoComponent } from '../shared/card-produto.component';
 })
 export class BuscaComponent {
   private svc = inject(ProdutoService);
-  dados = toSignal(
+
+  estado = toSignal(
     inject(ActivatedRoute).queryParamMap.pipe(
-      map(p => ({ q: p.get('q') ?? '', cat: p.get('cat') ?? '' })),
-      switchMap(f => this.svc.buscar(f.q, f.cat).pipe(map(lista => ({ lista, rotulo: f.q || f.cat || 'Todos os produtos' }))))
+      map(p => ({ q: (p.get('q') ?? '').trim(), cat: (p.get('cat') ?? '').trim() })),
+      switchMap(f => this.consultar(f.q, f.cat))
     ),
-    { initialValue: { lista: [] as Produto[], rotulo: '' } }
+    { initialValue: { status: 'carregando', lista: [], rotulo: '', erro: '' } as EstadoBusca }
   );
+
+  private consultar(q: string, cat: string): Observable<EstadoBusca> {
+    const rotulo = q || cat || 'Todos os produtos';
+    const fonte$ = q ? this.svc.buscar(q) : cat ? this.svc.porCategoria(cat) : this.svc.listar();
+    return fonte$.pipe(
+      map((lista): EstadoBusca => ({ status: 'ok', lista, rotulo, erro: '' })),
+      catchError(e => of<EstadoBusca>({ status: 'erro', lista: [], rotulo, erro: mensagemErro(e) })),
+      startWith<EstadoBusca>({ status: 'carregando', lista: [], rotulo, erro: '' })
+    );
+  }
 }

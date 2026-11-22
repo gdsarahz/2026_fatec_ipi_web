@@ -1,6 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { ProdutoService } from '../core/produto.service';
 import { CarrinhoService } from '../core/carrinho.service';
 import { AuthService } from '../core/auth.service';
@@ -28,7 +31,9 @@ import { AuthService } from '../core/auth.service';
             @if (carrinho.quantidade() > 0) { <span class="selo">{{ carrinho.quantidade() }}</span> }
           </a>
           @if (auth.usuario(); as u) {
-            <button class="acao usuario" (click)="auth.sair()" title="Sair">
+            <a routerLink="/pedidos" class="acao" aria-label="Meus pedidos" title="Meus pedidos"><i class="bi bi-receipt"></i></a>
+            <a routerLink="/cadastro" class="acao" aria-label="Meus dados" title="Meus dados"><i class="bi bi-person-gear"></i></a>
+            <button class="acao usuario" (click)="sair()" title="Sair">
               <i class="bi bi-person-check-fill"></i>
               <small>{{ u.nome.split(' ')[0] }} · sair</small>
             </button>
@@ -45,7 +50,7 @@ import { AuthService } from '../core/auth.service';
           </button>
           <ul [class.aberto]="aberto()" (click)="aberto.set(false)">
             <li><a routerLink="/" routerLinkActive="ativo" [routerLinkActiveOptions]="{exact: true}">Início</a></li>
-            @for (c of produtos.categorias; track c) {
+            @for (c of categorias(); track c) {
               <li><a routerLink="/busca" [queryParams]="{ cat: c }">{{ c }}</a></li>
             }
           </ul>
@@ -73,7 +78,10 @@ import { AuthService } from '../core/auth.service';
     .menu a:hover, .menu a.ativo { background: var(--pg-vermelho); color: #fff; }
     .menu-toggle { display: none; background: none; border: 0; color: #fff; padding: .6rem 0; font-weight: 600; }
     @media (max-width: 767px) {
-      .topo-linha { flex-wrap: wrap; }
+      .topo-linha { flex-wrap: wrap; gap: .5rem .75rem; padding: .5rem 12px; }
+      .logo img { height: 56px; width: auto; }
+      .acoes { gap: 1rem; }
+      .acao { font-size: 1.5rem; min-width: 2rem; min-height: 2rem; justify-content: center; }
       .busca { order: 3; flex-basis: 100%; max-width: none; }
       .acoes { margin-left: auto; }
       .menu-toggle { display: block; }
@@ -90,6 +98,16 @@ export class HeaderComponent {
   private router = inject(Router);
   termo = new FormControl('', { nonNullable: true });
   aberto = signal(false);
+  // categorias vêm do backend (as existentes nos produtos cadastrados)
+  categorias = toSignal(
+    this.produtos.categorias().pipe(catchError(() => of([] as string[]))),
+    { initialValue: [] as string[] }
+  );
+
+  sair(): void {
+    this.auth.sair();
+    this.router.navigate(['/']);
+  }
 
   buscar(): void {
     const q = this.termo.value.trim();
